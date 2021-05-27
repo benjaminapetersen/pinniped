@@ -1185,6 +1185,125 @@ func TestImpersonationProxy(t *testing.T) { //nolint:gocyclo // yeah, it's compl
 			actualConfigMap.TypeMeta = metav1.TypeMeta{} // This isn't filled out in the wantConfigMap we got back from create.
 			require.Equal(t, *wantConfigMap, actualConfigMap)
 		})
+
+		t.Run("honors anonymous authentication of KAS", func(t *testing.T) {
+			t.Parallel()
+
+			impersonationProxyAnonymousClient := newAnonymousImpersonationProxyClient(
+				t, impersonationProxyURL, impersonationProxyCACertPEM, nil,
+			)
+
+			// anonymous auth enabled
+			// - hit the healthz endpoint (non-resource endpoint)
+			//   - through the impersonation proxy
+			//   - should succeed 200
+			//   - kube api server ok
+			// - request to whoami (pinniped resource endpoing)
+			//   - through the impersonation proxy
+			//   - should succeed 200
+			//   - should respond "you are system:anonymous"
+			// - hit the pods endpoint (a resource endpoint)
+			//   - through the impersonation proxy
+			//   - should fail forbidden
+			//   - system:anonymous cannot get pods
+			// - hit the token credential request endpoint with an empty body
+			//   - through the impersonation proxy
+			//   - should succeed as an invalid request
+			//   - should not reject as unauthorized
+			t.Run("anonymous authentication enabled", func(t *testing.T) {
+				library.IntegrationEnv(t).WithCapability(library.AnonymousAuthenticationSupported)
+				t.Parallel()
+
+				t.Run("non-resource request", func(t *testing.T) {
+					t.Parallel()
+					// healthz
+
+				})
+
+				t.Run("non-resource request while impersonating anonymous", func(t *testing.T) {
+					t.Parallel()
+					// healthz
+
+				})
+
+				t.Run("resource", func(t *testing.T) {
+					t.Parallel()
+					// pods
+				})
+
+				t.Run("pinniped resource request", func(t *testing.T) {
+					t.Parallel()
+
+					whoAmI, err := impersonationProxyAnonymousClient.PinnipedConcierge.IdentityV1alpha1().WhoAmIRequests().
+						Create(ctx, &identityv1alpha1.WhoAmIRequest{}, metav1.CreateOptions{})
+					require.NoError(t, err)
+					require.Equal(t,
+						expectedWhoAmIRequestResponse(
+							"system:anonymous",
+							[]string{"system:unauthenticated"},
+							nil,
+						),
+						whoAmI,
+					)
+				})
+
+				t.Run("token credential request", func(t *testing.T) {
+					t.Parallel()
+					// tkr
+				})
+			})
+			// anonymous auth disabled
+			// - hit the healthz endpoint (non-resource endpoint)
+			//   - through the impersonation proxy
+			//   - should fail unauthorized
+			//   - kube api server should reject it
+			// - request to whoami (pinniped resource endpoing)
+			//   - through the impersonation proxy
+			//   - should fail unauthorized
+			//   - kube api server should reject it
+			// - hit the pods endpoint (a resource endpoint)
+			//   - through the impersonation proxy
+			//   - should fail unauthorized
+			//   - kube api server should reject it
+			// - hit the token credential request endpoint with an empty body
+			//   - through the impersonation proxy
+			//   - should succeed as an invalid request
+			//   - should not reject as unauthorized
+			t.Run("anonymous authentication disabled", func(t *testing.T) {
+				library.IntegrationEnv(t).WithoutCapability(library.AnonymousAuthenticationSupported)
+				t.Parallel()
+
+				t.Run("non-resource request", func(t *testing.T) {
+					t.Parallel()
+					// healthz
+				})
+
+				t.Run("non-resource request while impersonating anonymous", func(t *testing.T) {
+					t.Parallel()
+					// healthz
+
+				})
+
+				t.Run("resource", func(t *testing.T) {
+					t.Parallel()
+					// pods
+				})
+
+				t.Run("pinniped resource request", func(t *testing.T) {
+					t.Parallel()
+
+					whoAmI, err := impersonationProxyAnonymousClient.PinnipedConcierge.IdentityV1alpha1().WhoAmIRequests().
+						Create(ctx, &identityv1alpha1.WhoAmIRequest{}, metav1.CreateOptions{})
+					require.True(t, k8serrors.IsUnauthorized(err), library.Sdump(err))
+					require.Equal(t, &identityv1alpha1.WhoAmIRequest{}, whoAmI)
+				})
+
+				t.Run("token credential request", func(t *testing.T) {
+					t.Parallel()
+					// tkr
+				})
+			})
+		})
 	})
 
 	t.Run("manually disabling the impersonation proxy feature", func(t *testing.T) {
