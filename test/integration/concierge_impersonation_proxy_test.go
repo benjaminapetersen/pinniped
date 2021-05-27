@@ -788,15 +788,21 @@ func TestImpersonationProxy(t *testing.T) { //nolint:gocyclo // yeah, it's compl
 			).PinnipedConcierge
 			whoAmI, err = impersonationProxyAnonymousPinnipedConciergeClient.IdentityV1alpha1().WhoAmIRequests().
 				Create(ctx, &identityv1alpha1.WhoAmIRequest{}, metav1.CreateOptions{})
-			require.NoError(t, err)
-			require.Equal(t,
-				expectedWhoAmIRequestResponse(
-					"system:anonymous",
-					[]string{"system:unauthenticated"},
-					nil,
-				),
-				whoAmI,
-			)
+
+			// we expect the impersonation proxy to match the behavior of KAS in regards to anonymous requests
+			if env.HasCapability(library.AnonymousAuthenticationSupported) {
+				require.NoError(t, err)
+				require.Equal(t,
+					expectedWhoAmIRequestResponse(
+						"system:anonymous",
+						[]string{"system:unauthenticated"},
+						nil,
+					),
+					whoAmI,
+				)
+			} else {
+				require.True(t, k8serrors.IsUnauthorized(err), library.Sdump(err))
+			}
 
 			// Test using a service account token.
 			namespaceName := createTestNamespace(t, adminClient)

@@ -5,6 +5,7 @@ package impersonator
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"net"
 	"net/http"
@@ -410,6 +411,11 @@ func TestImpersonator(t *testing.T) {
 						}
 					`)))
 					}
+				case "/healthz": // TODO better tests
+					// match KAS /healthz endpoint
+					w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+					w.Header().Set("X-Content-Type-Options", "nosniff")
+					_, _ = fmt.Fprint(w, "ok")
 				default:
 					require.Fail(t, "fake Kube API server got an unexpected request")
 				}
