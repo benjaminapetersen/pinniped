@@ -155,17 +155,17 @@ log_note "Checking for running kind cluster..."
 if ! kind get clusters | grep -q -e '^pinniped$'; then
   log_note "Creating a kind cluster..."
   # Our kind config exposes node port 31234 as 127.0.0.1:12345, 31243 as 127.0.0.1:12344, and 31235 as 127.0.0.1:12346
-  ./hack/kind-up.sh
+  # ./hack/kind-up.sh
 else
   if ! kubectl cluster-info | grep -E '(master|control plane)' | grep -q 127.0.0.1; then
     log_error "Seems like your kubeconfig is not targeting a local cluster."
     log_error "Exiting to avoid accidentally running tests against a real cluster."
-    exit 1
+    # exit 1
   fi
 fi
 
-registry="pinniped.local"
-repo="test/build"
+registry="docker.io"
+repo="enjk/pinniped"
 registry_repo="$registry/$repo"
 tag=$(uuidgen) # always a new tag to force K8s to reload the image on redeploy
 
@@ -193,7 +193,8 @@ fi
 
 # Load it into the cluster
 log_note "Loading the app's container image into the kind cluster..."
-kind load docker-image "$registry_repo_tag" --name pinniped
+# kind load docker-image "$registry_repo_tag" --name pinniped
+docker push "$registry_repo_tag"
 
 manifest=/tmp/manifest.yaml
 
@@ -312,7 +313,7 @@ test_ca_bundle_pem="$(kubectl get secrets -n tools certs -o go-template='{{index
 # so that the environment can also be used in tools like GoLand. Therefore, multi-line values,
 # such as PEM-formatted certificates, should be base64 encoded.
 #
-kind_capabilities_file="$pinniped_path/test/cluster_capabilities/kind.yaml"
+kind_capabilities_file="$pinniped_path/test/cluster_capabilities/aks.yaml"
 pinniped_cluster_capability_file_content=$(cat "$kind_capabilities_file")
 
 cat <<EOF >/tmp/integration-test-env
@@ -331,7 +332,7 @@ export PINNIPED_TEST_SUPERVISOR_APP_NAME=${supervisor_app_name}
 export PINNIPED_TEST_SUPERVISOR_CUSTOM_LABELS='${supervisor_custom_labels}'
 export PINNIPED_TEST_SUPERVISOR_HTTP_ADDRESS="127.0.0.1:12345"
 export PINNIPED_TEST_SUPERVISOR_HTTPS_ADDRESS="localhost:12344"
-export PINNIPED_TEST_PROXY=http://127.0.0.1:12346
+export __PINNIPED_TEST_PROXY=http://127.0.0.1:12346
 export PINNIPED_TEST_LDAP_HOST=ldap.tools.svc.cluster.local
 export PINNIPED_TEST_LDAP_STARTTLS_ONLY_HOST=ldapstarttls.tools.svc.cluster.local
 export PINNIPED_TEST_LDAP_LDAPS_CA_BUNDLE="${test_ca_bundle_pem}"
