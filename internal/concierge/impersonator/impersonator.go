@@ -121,6 +121,7 @@ func newInternal( //nolint:funlen // yeah, it's kind of long.
 		if err != nil {
 			return nil, fmt.Errorf("could not detect if anonymous authentication is enabled: %w", err)
 		}
+		plog.Debug("anonymous authentication probed", "anonymousAuthEnabled", anonymousAuthEnabled)
 
 		if recOpts != nil {
 			recOpts(recommendedOptions)

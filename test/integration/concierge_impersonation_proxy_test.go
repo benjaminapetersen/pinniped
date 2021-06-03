@@ -1309,10 +1309,9 @@ func TestImpersonationProxy(t *testing.T) { //nolint:gocyclo // yeah, it's compl
 					require.NoError(t, errHealth, library.Sdump(errHealth))
 					require.Equal(t, "ok", string(healthz))
 
-					// TODO fix:
-					// healthz, err := impersonationProxyAdminRestClientAsAnonymous.Get().AbsPath("/healthz/log").DoRaw(ctx)
-					// require.True(t, k8serrors.IsUnauthorized(err), "%s\n%s", library.Sdump(err), string(healthz))
-					// require.Equal(t, `{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"Unauthorized blah blah blah","reason":"Unauthorized","code":401}`+"\n", string(healthz))
+					healthzLog, errHealthzLog := impersonationProxyAdminRestClientAsAnonymous.Get().AbsPath("/healthz/log").DoRaw(ctx)
+					require.True(t, k8serrors.IsForbidden(errHealthzLog), "%s\n%s", library.Sdump(errHealthzLog), string(healthzLog))
+					require.Equal(t, `{"kind":"Status","apiVersion":"v1","metadata":{},"status":"Failure","message":"forbidden: User \"system:anonymous\" cannot get path \"/healthz/log\"","reason":"Forbidden","details":{},"code":403}`+"\n", string(healthzLog))
 				})
 
 				// - hit the pods endpoint (a resource endpoint)
